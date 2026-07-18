@@ -6,6 +6,21 @@ class  CandidateURL(BaseModel):
     snippet:str
     published_date:Optional[str]=None
     source_query:str
+class CrawledPage(BaseModel):
+    url:str
+    markdown:str
+class AnalyzedResource(BaseModel):
+    url: str
+    title: str
+    score: float
+    reasoning: str
+    topics_covered: list[str]
+    difficulty_level: str
+    ai_summary: str
+    prerequisites: list[str]
+    resource_type: str
+    price_type: str
+    skills_taught: list[str]
 if __name__ == "__main__":
     test_result = CandidateURL(
         url="https://docs.langchain.com/langgraph",
