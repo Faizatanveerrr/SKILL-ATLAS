@@ -107,6 +107,7 @@ import boto3
 import os
 from dotenv import load_dotenv
 from model import CrawledPage, AnalyzedResource
+from pipeline.youtube import is_youtube_url, get_youtube_transcript
 
 load_dotenv()
 
@@ -151,15 +152,18 @@ def extract_relevant_section(markdown: str, keywords: list[str], window: int = 5
 
 
 def analyze_page(page: CrawledPage) -> AnalyzedResource | None:
+    if is_youtube_url(page.url):
+        transcript = get_youtube_transcript(page.url)
+        content_source = transcript if transcript else page.markdown
+    else:
+        content_source = page.markdown
+
     prerequisite_section = extract_relevant_section(
-        page.markdown,
+        content_source,
         keywords=["prerequisite", "requirement", "before you start", "before starting", "you'll need", "you should know"]
     )
 
-    combined_content = page.markdown[:8000]
-    if prerequisite_section and prerequisite_section not in combined_content:
-        combined_content += f"\n\n--- Additional relevant section ---\n{prerequisite_section}"
-
+    combined_content = content_source[:8000]
     prompt = PROMPT_TEMPLATE.format(url=page.url, content=combined_content)
 
     print(f"--- Content sent to LLM ---\n{combined_content[:2000]}...\n--- END ---")
@@ -195,22 +199,25 @@ def analyze_page(page: CrawledPage) -> AnalyzedResource | None:
         print(f"Skipping {page.url}: could not parse LLM response ({e})")
         return None
 
-
 if __name__ == "__main__":
     import asyncio
     from pipeline.search import search_web
     from pipeline.crawl import crawl_page
 
-    topic = input("enter what you want to learn: ")
-    candidates = search_web(topic)
+    topic = input("enter what you want to learn: ").strip()
 
-    async def run_all():
-        for candidate in candidates[:2]:  # small batch while debugging
-            page = await crawl_page(candidate)
-            if page:
-                analyzed = analyze_page(page)
-                if analyzed:
-                    print(f"""
+    if not topic:
+        print("You didn't enter anything. Please provide a topic to search for.")
+    else:
+        candidates = search_web(topic)
+
+        async def run_all():
+            for candidate in candidates[:2]:
+                page = await crawl_page(candidate)
+                if page:
+                    analyzed = analyze_page(page)
+                    if analyzed:
+                        print(f"""
 📚 {analyzed.title}
 🔗 {analyzed.url}
 ⭐ Score: {analyzed.score}/10
@@ -221,4 +228,4 @@ if __name__ == "__main__":
 🧠 Skills Taught: {', '.join(analyzed.skills_taught) if analyzed.skills_taught else 'None'}
 """)
 
-    asyncio.run(run_all())
+        asyncio.run(run_all())
