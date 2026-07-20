@@ -16,8 +16,9 @@ def get_youtube_transcript(url: str) -> str | None:
     if not video_id:
         return None
     try:
-        transcript_list = YouTubeTranscriptApi.get_transcript(video_id)
-        full_text = " ".join(entry["text"] for entry in transcript_list)
+        ytt_api = YouTubeTranscriptApi()
+        fetched_transcript = ytt_api.fetch(video_id)
+        full_text = " ".join(snippet.text for snippet in fetched_transcript)
         return full_text
     except Exception as e:
         print(f"Could not get transcript for {url}: {e}")

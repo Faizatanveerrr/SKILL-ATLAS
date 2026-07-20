@@ -21,6 +21,7 @@ class AnalyzedResource(BaseModel):
     resource_type: str
     price_type: str
     skills_taught: list[str]
+    relevance_score: float
 if __name__ == "__main__":
     test_result = CandidateURL(
         url="https://docs.langchain.com/langgraph",
