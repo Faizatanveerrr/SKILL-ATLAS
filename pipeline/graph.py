@@ -7,6 +7,7 @@ from pipeline.rank import rank_resources
 from langgraph.graph import StateGraph, START, END
 import asyncio
 from crawl4ai import AsyncWebCrawler
+from pipeline.storage import init_db, get_cached_result, save_result
 
 class PipelineState(TypedDict):
     topic: str
@@ -23,12 +24,21 @@ def search_node(state: PipelineState) -> dict:
     return {"candidates": candidates}
 
 def crawl_and_analyze_node(state: PipelineState) -> dict:
+    init_db()
+
     async def process_all():
         async with AsyncWebCrawler() as crawler:
             async def crawl_and_analyze_one(candidate):
+                cached = get_cached_result(candidate.url, state["topic"])
+                if cached:
+                    print(f"💾 Using cached result for {candidate.url}")
+                    return cached
+
                 page = await crawl_page(candidate, crawler)
                 if page:
                     analyzed = analyze_page(page, state["topic"])
+                    if analyzed:
+                        save_result(analyzed, state["topic"])
                     return analyzed
                 return None
 
