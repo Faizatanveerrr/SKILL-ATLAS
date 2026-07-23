@@ -4,4 +4,3 @@ venv/
 __pycache__/
 *.pyc
 skill_atlas.db
-.streamlit/secrets.toml
