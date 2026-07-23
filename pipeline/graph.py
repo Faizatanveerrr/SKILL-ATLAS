@@ -36,7 +36,7 @@ def crawl_and_analyze_node(state: PipelineState) -> dict:
 
                 page = await crawl_page(candidate, crawler)
                 if page:
-                    analyzed = analyze_page(page, state["topic"])
+                    analyzed = analyze_page(page, state["topic"], published_date=candidate.published_date)
                     if analyzed:
                         save_result(analyzed, state["topic"])
                     return analyzed
@@ -50,7 +50,17 @@ def crawl_and_analyze_node(state: PipelineState) -> dict:
     return {"analyzed_results": analyzed_results}
 
     
-
+async def crawl_and_analyze_one(candidate):
+    cached = get_cached_result(candidate.url, state["topic"])
+    if cached:
+        return cached
+    page = await crawl_page(candidate, crawler)
+    if page:
+        analyzed = analyze_page(page, state["topic"], published_date=candidate.published_date)
+        if analyzed:
+            save_result(analyzed, state["topic"])
+        return analyzed
+    return None
 
 
 def rank_node(state: PipelineState) -> dict:
@@ -74,7 +84,38 @@ def build_graph():
     graph.add_edge("rank", END)
 
     return graph.compile()
+def build_roadmap(goal: str) -> dict:
+    from pipeline.analyse import generate_roadmap_stages
 
+    stage_data = generate_roadmap_stages(goal)
+    if not stage_data:
+        return {"goal": goal, "stages": []}
+
+    app = build_graph()
+    roadmap_stages = []
+
+    for stage in stage_data["stages"]:
+        print(f"🗺️ Building stage {stage['stage_number']}: {stage['title']}")
+        initial_state = {
+            "topic": stage["search_query"],
+            "resource_type": None,
+            "price_type": None,
+            "difficulty_level": None,
+            "candidates": [],
+            "analyzed_results": [],
+            "ranked_results": []
+        }
+        final_state = app.invoke(initial_state)
+        top_resource = final_state["ranked_results"][0] if final_state["ranked_results"] else None
+
+        roadmap_stages.append({
+            "stage_number": stage["stage_number"],
+            "title": stage["title"],
+            "description": stage["description"],
+            "resource": top_resource
+        })
+
+    return {"goal": goal, "stages": roadmap_stages}
 
 if __name__ == "__main__":
     app = build_graph()
@@ -110,6 +151,7 @@ if __name__ == "__main__":
 📚 {r.title}
 ⭐ Quality Score: {r.score}/10
 🎯 Relevance Score: {r.relevance_score}/10
+📅 Freshness: {r.freshness_score}/10 | ⏱️ Est. Time: {r.estimated_minutes} min
 💰 {r.price_type}
 📝 {r.ai_summary}
 🔗 {r.url}

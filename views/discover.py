@@ -43,19 +43,35 @@ if search_clicked and topic.strip():
         st.session_state["last_topic"] = clean_topic
 
         log_search(username, clean_topic, len(final_state["ranked_results"]))
+if "selected_resource_url" not in st.session_state:
+    st.session_state["selected_resource_url"] = None
 
 if st.session_state["results"] is not None:
     results = st.session_state["results"]
     topic_used = st.session_state["last_topic"]
-    if results:
-        st.success(f"Found {len(results)} resources for '{topic_used}'")
-        for r in results:
-            render_result(r, topic=topic_used)
-    else:
-        fallback = rank_resources(st.session_state["fallback_results"])
-        if fallback:
-            st.warning("No exact match for your filters — here are other resources on this topic:")
-            for r in fallback:
-                render_result(r, topic=topic_used)
+    all_available = results if results else rank_resources(st.session_state["fallback_results"])
+
+    selected_url = st.session_state["selected_resource_url"]
+
+    if selected_url:
+        selected = next((r for r in all_available if r.url == selected_url), None)
+        if selected:
+            from shared import render_result_detail
+            render_result_detail(selected, topic=topic_used)
         else:
-            st.error("No resources found at all for this topic. Try a different search term.")
+            st.session_state["selected_resource_url"] = None
+            st.rerun()
+    else:
+        from shared import render_result_compact
+        if results:
+            st.success(f"Found {len(results)} resources for '{topic_used}'")
+            for r in results:
+                render_result_compact(r)
+        else:
+            fallback = rank_resources(st.session_state["fallback_results"])
+            if fallback:
+                st.warning("No exact match for your filters — here are other resources on this topic:")
+                for r in fallback:
+                    render_result_compact(r)
+            else:
+                st.error("No resources found at all for this topic. Try a different search term.")

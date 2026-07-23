@@ -15,26 +15,31 @@ authenticator = stauth.Authenticate(
     config["cookie"]["key"],
     config["cookie"]["expiry_days"],
 )
-tab1, tab2 = st.tabs(["Login", "Sign Up"])
+st.session_state["authenticator"] = authenticator
+st.session_state["config"] = config
 
-with tab1:
-    authenticator.login(key="login_form_unique")
+if st.session_state.get("authentication_status") is not True:
+    tab1, tab2 = st.tabs(["Login", "Sign Up"])
 
-with tab2:
-    try:
-        email, username, name = authenticator.register_user(pre_authorized=None)
-        if email:
-            with open("config.yaml", "w") as f:
-                yaml.dump(config, f, default_flow_style=False)
-            st.success("Account created successfully! Please go to the Login tab.")
-    except Exception as e:
-        st.error(e)
+    with tab1:
+        authenticator.login(key="login_form_unique")
+        
 
+    with tab2:
+        try:
+            email, username, name = authenticator.register_user(pre_authorized=None)
+            if email:
+                with open("config.yaml", "w") as f:
+                    yaml.dump(config, f, default_flow_style=False)
+                st.success("Account created successfully! Please go to the Login tab.")
+        except Exception as e:
+            st.error(e)
 
-if st.session_state.get("authentication_status") is False:
-    st.error("Username or password is incorrect")
-elif st.session_state.get("authentication_status") is None:
-    st.warning("Please enter your username and password")
+    if st.session_state.get("authentication_status") is False:
+        st.error("Username or password is incorrect")
+    elif st.session_state.get("authentication_status") is None:
+        st.warning("Please enter your username and password")
+
 else:
     init_session_state()
 
@@ -48,5 +53,7 @@ else:
         st.Page("views/history.py", title="History", icon="🕐"),
         st.Page("views/profile.py", title="Profile", icon="👤"),
         st.Page("views/settings.py", title="Settings", icon="⚙️"),
+        st.Page("views/playlists.py", title="Playlists", icon="🎵"),
+        st.Page("views/roadmap.py", title="Roadmap", icon="🗺️"),
     ])
     pg.run()

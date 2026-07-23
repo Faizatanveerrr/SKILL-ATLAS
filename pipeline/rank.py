@@ -5,7 +5,9 @@ def rank_resources(
     resource_type: str | None = None,
     price_type: str | None = None,
     difficulty_level: str | None = None,
+    min_freshness: float | None = None,
     top_n: int | None = None
+    
 ) -> list[AnalyzedResource]:
     
     filtered = resources

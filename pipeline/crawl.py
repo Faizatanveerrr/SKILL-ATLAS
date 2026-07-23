@@ -8,4 +8,9 @@ async def crawl_page(candidate: CandidateURL, crawler: AsyncWebCrawler) -> Crawl
     if not result.success:
         print(f"Failed to crawl {candidate.url}")
         return None
-    return CrawledPage(url=candidate.url, markdown=result.markdown)
+
+    thumbnail = None
+    if result.metadata:
+        thumbnail = result.metadata.get("og:image")
+
+    return CrawledPage(url=candidate.url, markdown=result.markdown, thumbnail_url=thumbnail)

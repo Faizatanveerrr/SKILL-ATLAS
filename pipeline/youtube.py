@@ -10,6 +10,11 @@ def extract_video_id(url: str) -> str | None:
     match = re.search(r"(?:v=|youtu\.be/)([a-zA-Z0-9_-]{11})", url)
     return match.group(1) if match else None
 
+def get_youtube_thumbnail(url: str) -> str | None:
+    video_id = extract_video_id(url)
+    if not video_id:
+        return None
+    return f"https://img.youtube.com/vi/{video_id}/hqdefault.jpg"
 
 def get_youtube_transcript(url: str) -> str | None:
     video_id = extract_video_id(url)
