@@ -4,7 +4,7 @@ print(f"[T] script start")
 
 import logging
 logging.basicConfig(level=logging.INFO)
-
+from pathlib import Path
 import streamlit as st
 import streamlit_authenticator as stauth
 import yaml
@@ -243,8 +243,9 @@ function killTabHighlight() {
 setInterval(killTabHighlight, 300);
 </script>
 """, height=0)
-with open("config.yaml") as f:
-    config = yaml.load(f, Loader=SafeLoader)
+BASE_DIR = Path(__file__).resolve().parent
+
+with open(BASE_DIR / "config.yaml") as f:
 
 _t = time.time()
 authenticator = stauth.Authenticate(
