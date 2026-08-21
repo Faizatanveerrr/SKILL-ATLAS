@@ -245,8 +245,11 @@ setInterval(killTabHighlight, 300);
 """, height=0)
 BASE_DIR = Path(__file__).resolve().parent
 
-with open(BASE_DIR / "config.yaml") as f:
-    _t = time.time()
+import yaml
+
+with open(BASE_DIR / "config.yaml", "r") as f:
+    config = yaml.safe_load(f)
+
 authenticator = stauth.Authenticate(
     config["credentials"],
     config["cookie"]["name"],
