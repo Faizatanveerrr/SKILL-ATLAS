@@ -144,6 +144,36 @@ Analyze this resource and respond with ONLY valid JSON, no other text, in this e
 
 If there are no clear prerequisites, return an empty list for prerequisites.
 """
+COURSE_STRUCTURE_PROMPT_TEMPLATE = """Create a short course outline for the topic: "{topic}"
+
+Respond with ONLY valid JSON, no other text, in this exact format:
+{{
+    "title": "course title",
+    "description": "2-3 sentence course description",
+    "lessons": [
+        {{
+            "title": "lesson title",
+            "content": "150-250 words of narration-ready teaching content, written in a clear, spoken teaching tone. This must actually TEACH the concept in depth: define it, explain how/why it works, and include at least one concrete example. Do not write a summary or overview of what the lesson will cover — write the full explanation itself, as if narrating the lesson to a student who has never seen this before."
+        }}
+    ]
+}}
+
+Generate exactly 3 lessons, ordered from foundational to more advanced.
+"""
+
+
+def generate_course_structure(topic: str) -> dict | None:
+    prompt = COURSE_STRUCTURE_PROMPT_TEMPLATE.format(topic=topic)
+    response = bedrock.converse(
+        modelId="amazon.nova-lite-v1:0",
+        messages=[{"role": "user", "content": [{"text": prompt}]}],
+    )
+    raw_text = response["output"]["message"]["content"][0]["text"]
+    try:
+        return json.loads(raw_text)
+    except Exception as e:
+        print(f"Could not generate course structure: {e}")
+        return None
 from datetime import datetime, timezone
 
 def compute_freshness_score(published_date: str | None) -> float:

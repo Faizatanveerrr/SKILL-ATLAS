@@ -5,7 +5,7 @@ from model import CandidateURL
 load_dotenv()
 # To install: pip install tavily-python
 
-client = TavilyClient("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")
+client = TavilyClient(os.environ.get("TAVILY_API_KEY"))
 
 def search_web(topic: str, max_result: int = 10) -> list[CandidateURL]:
     course_query = f"{topic} course tutorial for beginners"

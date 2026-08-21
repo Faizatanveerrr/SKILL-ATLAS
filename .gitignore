@@ -1,7 +1,30 @@
+# Environment variables / secrets
 .env
-config.yaml
+.env.*
+!.env.example
+
+# Python virtual environment
+ai_env/
 venv/
+.venv/
+
+# Python cache
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+
+# Local database
 skill_atlas.db
+*.db
+
+# Streamlit secrets
 .streamlit/secrets.toml
+
+# IDE/editor files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
