@@ -246,7 +246,7 @@ setInterval(killTabHighlight, 300);
 BASE_DIR = Path(__file__).resolve().parent
 
 import yaml
-
+_t = time.time()
 with open(BASE_DIR / "config.yaml", "r") as f:
     config = yaml.safe_load(f)
 
