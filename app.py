@@ -1,3 +1,18 @@
+import subprocess
+import sys
+
+@st.cache_resource
+def ensure_playwright_browser():
+    result = subprocess.run(
+        [sys.executable, "-m", "playwright", "install", "chromium"],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        st.error(f"Playwright install failed: {result.stderr}")
+    return result.returncode == 0
+
+ensure_playwright_browser()
 import time
 _t0 = time.time()
 print(f"[T] script start")
