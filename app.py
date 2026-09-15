@@ -1,5 +1,16 @@
 import subprocess
 import sys
+import logging
+logging.basicConfig(level=logging.INFO)
+from pathlib import Path
+import streamlit as st
+import streamlit_authenticator as stauth
+import yaml
+from yaml.loader import SafeLoader
+from shared import init_session_state
+import os
+from dotenv import load_dotenv
+
 
 @st.cache_resource
 def ensure_playwright_browser():
@@ -17,16 +28,6 @@ import time
 _t0 = time.time()
 print(f"[T] script start")
 
-import logging
-logging.basicConfig(level=logging.INFO)
-from pathlib import Path
-import streamlit as st
-import streamlit_authenticator as stauth
-import yaml
-from yaml.loader import SafeLoader
-from shared import init_session_state
-import os
-from dotenv import load_dotenv
 
 # Workaround for intermittent Windows import race (OSError WinError 6714)
 # that can hit pyarrow when it's first imported from Streamlit's background
