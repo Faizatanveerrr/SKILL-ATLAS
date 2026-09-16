@@ -1,12 +1,8 @@
 import streamlit as st
 from pipeline.graph import build_graph
 from pipeline.storage import init_db, save_resource_for_user, is_saved
-from pipeline.youtube import is_youtube_url, get_youtube_thumbnail
+from pipeline.image_generator import get_or_generate_resource_thumbnail
 import html
-import logging
-
-logger = logging.getLogger(__name__)
-
 
 @st.cache_resource
 def get_graph():
@@ -195,18 +191,29 @@ def apply_custom_css():
         }
     </style>
     """, unsafe_allow_html=True)
-
-
 TYPE_ICONS = {"Course": "🎓", "Documentation": "📄", "Video": "🎬", "Article": "📰", "Repository": "💻"}
 
 
-def render_grid_card(r, saved_label=None, context="default"):
-    icon = TYPE_ICONS.get(r.resource_type, "📚")
-    type_class = f"type-{r.resource_type}" if r.resource_type in TYPE_ICONS else "type-Course"
+def _resolve_thumbnail(r) -> str:
+    """
+    Returns a displayable image path/URL for a resource card.
+    Prefers the resource's own real thumbnail (e.g. a crawled Open Graph
+    image or YouTube thumbnail). Falls back to a generated cover — cheap,
+    deterministic, cached on disk per resource (see pipeline/image_generator.py) —
+    so cards never fall back to a bare emoji icon.
+    """
+    if r.thumbnail_url:
+        return r.thumbnail_url
+    return get_or_generate_resource_thumbnail(r.title, r.url)
 
+
+def render_grid_card(r, saved_label=None, context="default"):
+    type_class = f"type-{r.resource_type}" if r.resource_type in TYPE_ICONS else "type-Course"
+    thumbnail = _resolve_thumbnail(r)
+
+    st.image(thumbnail, use_container_width=True)
     st.markdown(f"""
-    <div class="grid-card">
-        <div class="icon-box">{icon}</div>
+    <div class="grid-card" style="margin-top:-0.4rem; border-top-left-radius:0; border-top-right-radius:0;">
         <span class="type-pill {type_class}">{html.escape(r.resource_type)}</span>
         <div class="grid-title">{html.escape(r.title)}</div>
         <div class="grid-desc">{html.escape(r.ai_summary[:120])}{'...' if len(r.ai_summary) > 120 else ''}</div>
@@ -226,53 +233,21 @@ def render_grid_card(r, saved_label=None, context="default"):
     with col2:
         st.link_button("🔗 Visit", r.url, use_container_width=True, key=f"grid_visit_{context}_{r.url}")
 
+def render_result_compact(r):
+    with st.container(border=True):
+        col_img, col_content = st.columns([1, 4], gap="medium")
 
-def _resolve_thumbnail(r):
-    """
-    Resolves a thumbnail for a resource card:
-    1. Use r.thumbnail_url if already set.
-    2. If it's a YouTube link, use the real YouTube thumbnail (fast, free).
-    Returns None if nothing is available, so the caller falls back to an
-    emoji icon.
+        with col_img:
+            st.image(_resolve_thumbnail(r), use_container_width=True)
 
-    NOTE: AI-generated thumbnails (Stable Diffusion) have been removed --
-    they weren't producing relevant images. Real image search (e.g.
-    Unsplash) is planned as a replacement; until then, resources without
-    a thumbnail_url or YouTube link just show their type icon.
-    """
-    if r.thumbnail_url:
-        return r.thumbnail_url
-
-    if is_youtube_url(r.url):
-        try:
-            yt_thumb = get_youtube_thumbnail(r.url)
-        except Exception:
-            logger.exception(f"YouTube thumbnail lookup failed for {r.url}")
-            yt_thumb = None
-        if yt_thumb:
-            return yt_thumb
-
-    return None
-
-
-def render_result_compact_shell(r):
-    """
-    Renders the text/badges/buttons for one result card immediately,
-    leaving an empty placeholder where the thumbnail will go.
-    Returns the placeholder so it can be filled in later, after every
-    card's text has already been shown.
-    """
-    container = st.container(border=True)
-    with container:
-        price_class = "badge-free" if r.price_type == "Free" else "badge-paid"
-        st.markdown(f"""
-            <div class="resource-title">{html.escape(r.title)}</div>
-            <span class="badge badge-score">⭐ {r.score}/10</span>
-            <span class="badge {price_class}">💰 {r.price_type}</span>
-            <span class="badge badge-level">🎯 {r.difficulty_level}</span>
-        """, unsafe_allow_html=True)
-
-        thumb_placeholder = st.empty()
+        with col_content:
+            price_class = "badge-free" if r.price_type == "Free" else "badge-paid"
+            st.markdown(f"""
+                <div class="resource-title">{html.escape(r.title)}</div>
+                <span class="badge badge-score">⭐ {r.score}/10</span>
+                <span class="badge {price_class}">💰 {r.price_type}</span>
+                <span class="badge badge-level">🎯 {r.difficulty_level}</span>
+            """, unsafe_allow_html=True)
 
         st.write("")
         bcol1, bcol2 = st.columns(2, gap="small")
@@ -282,63 +257,6 @@ def render_result_compact_shell(r):
                 st.rerun()
         with bcol2:
             st.link_button("🔗 Visit Site", r.url, use_container_width=True)
-
-    return thumb_placeholder
-
-
-def fill_thumbnail(placeholder, r, max_width=None):
-    """
-    Resolves and fills in the thumbnail for a card previously created by
-    render_result_compact_shell or render_result_detail.
-
-    max_width: if set, the image is shown at a fixed pixel width instead
-    of stretching to fill its container. Use this for the detail page,
-    where the container is the full page width and stretching a small
-    generated image (512x512) that wide makes it blurry and oversized.
-    Card thumbnails should keep max_width=None so they still fill their
-    (small) card width via use_container_width.
-    """
-    thumbnail = _resolve_thumbnail(r)
-    if thumbnail:
-        if max_width:
-            placeholder.image(thumbnail, width=max_width)
-        else:
-            # Fixed-height, cropped thumbnail strip for cards -- prevents
-            # wide YouTube thumbnails (16:9) from stretching the card tall
-            # when scaled to full container width via st.image.
-            placeholder.markdown(
-                f'''<div style="width:100%; height:160px; border-radius:10px;
-                    overflow:hidden; margin-bottom:0.4rem; background:#0d1117;
-                    display:flex; align-items:center; justify-content:center;">
-                    <img src="{thumbnail}" style="width:100%; height:100%;
-                        object-fit:contain; display:block;" />
-                </div>''',
-                unsafe_allow_html=True
-            )
-    else:
-        icon = TYPE_ICONS.get(r.resource_type, "📚")
-        placeholder.markdown(
-            f'<div style="font-size:2.5rem; text-align:center; padding-top:0.6rem;">{icon}</div>',
-            unsafe_allow_html=True
-        )
-
-
-def render_result_compact(r):
-    """Kept for backward compatibility: renders text then resolves the thumbnail immediately (blocking)."""
-    placeholder = render_result_compact_shell(r)
-    fill_thumbnail(placeholder, r)
-
-
-def render_results_list(results):
-    """
-    Renders a full list of results in two passes:
-    1. All text/badges/buttons render first (fast, no blocking).
-    2. Thumbnails are resolved and filled in afterward, one by one.
-    """
-    placeholders = [(r, render_result_compact_shell(r)) for r in results]
-
-    for r, placeholder in placeholders:
-        fill_thumbnail(placeholder, r)
 
 
 def render_result_detail(r, topic=None):
@@ -353,7 +271,7 @@ def render_result_detail(r, topic=None):
     skills_html = f'<div class="meta-text">🧠 Skills Taught: {html.escape(", ".join(r.skills_taught))}</div>' if r.skills_taught else ""
     price_class = "badge-free" if r.price_type == "Free" else "badge-paid"
 
-    # ---- Text content renders first, immediately ----
+    st.image(_resolve_thumbnail(r), use_container_width=True)
     st.markdown(f"""
     <div class="resource-card">
         <div class="resource-title">{html.escape(r.title)}</div>
@@ -368,9 +286,6 @@ def render_result_detail(r, topic=None):
         <div class="meta-text">💭 {html.escape(r.reasoning)}</div>
     </div>
     """, unsafe_allow_html=True)
-
-    # ---- Placeholder reserves the thumbnail's spot without blocking anything below ----
-    thumb_placeholder = st.empty()
 
     col1, col2 = st.columns([1, 1])
     with col1:
@@ -408,7 +323,6 @@ def render_result_detail(r, topic=None):
                     st.success("Correct! ✅")
                 else:
                     st.error(f"Not quite. The correct answer is: {correct}")
-
     from pipeline.analyse import generate_project_ideas
 
     st.write("")
@@ -428,7 +342,6 @@ def render_result_detail(r, topic=None):
                 <span class="badge badge-level">⏱️ ~{p['estimated_hours']}h</span>
             </div>
             """, unsafe_allow_html=True)
-
     from pipeline.analyse import analyze_skill_gap
 
     st.write("")
@@ -445,14 +358,6 @@ def render_result_detail(r, topic=None):
             st.write(f"**Already Known:** {', '.join(gap_data['already_known']) if gap_data['already_known'] else 'None'}")
             st.write(f"**New Skills:** {', '.join(gap_data['new_skills'])}")
             st.write(gap_data['gap_summary'])
-
-    # ---- Thumbnail resolves and fills in last, after the whole page is already usable ----
-    # Fixed width here (not full page width) -- the generated image is
-    # 512x512 natively, and stretching it across the entire page looks
-    # blurry/oversized. 512 keeps it crisp; adjust if your layout is wider.
-    fill_thumbnail(thumb_placeholder, r, max_width=512)
-
-
 def render_result(r, topic=None, show_save_button=True):
     prereq_html = f'<div class="meta-text">📋 Prerequisites: {", ".join(r.prerequisites)}</div>' if r.prerequisites else ""
     skills_html = f'<div class="meta-text">🧠 Skills Taught: {", ".join(r.skills_taught)}</div>' if r.skills_taught else ""
@@ -469,7 +374,7 @@ def render_result(r, topic=None, show_save_button=True):
         <div class="meta-text">🔗 <a href="{r.url}" target="_blank">{r.url}</a></div>
         {prereq_html}
         {skills_html}
-
+        
     </div>
     """, unsafe_allow_html=True)
 
