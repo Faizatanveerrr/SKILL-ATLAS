@@ -18,84 +18,232 @@ def init_session_state():
         st.session_state["fallback_results"] = None
     if "last_topic" not in st.session_state:
         st.session_state["last_topic"] = ""
+    if "theme" not in st.session_state:
+        st.session_state["theme"] = "dark"
+
+
+# ---------------------------------------------------------------------------
+# Theme palettes. Every color the CSS below uses is pulled from one of these
+# two dicts, keyed the same way, so apply_custom_css() below never has a
+# hardcoded color literal in it — everything routes through THEMES[mode].
+# ---------------------------------------------------------------------------
+THEMES = {
+    "dark": {
+        "app_bg": "linear-gradient(180deg, #0b0f1a 0%, #0e1117 100%)",
+        "text_primary": "#f8fafc",
+        "text_secondary": "#9ca3af",
+        "title_gradient": "linear-gradient(90deg, #ffffff, #93c5fd)",
+        "card_bg": "linear-gradient(145deg, #171b26, #14171f)",
+        "card_border": "#262b38",
+        "card_border_hover": "#334063",
+        "card_shadow": "rgba(0,0,0,0.25)",
+        "card_shadow_hover": "rgba(59,130,246,0.15)",
+        "summary_text": "#b8c0cf",
+        "meta_text": "#7c8798",
+        "badge_score_bg": "rgba(52,211,153,0.14)", "badge_score_text": "#4ade80", "badge_score_border": "rgba(74,222,128,0.25)",
+        "badge_relevance_bg": "rgba(96,165,250,0.14)", "badge_relevance_text": "#60a5fa", "badge_relevance_border": "rgba(96,165,250,0.25)",
+        "badge_free_bg": "rgba(52,211,153,0.14)", "badge_free_text": "#4ade80", "badge_free_border": "rgba(74,222,128,0.25)",
+        "badge_paid_bg": "rgba(251,191,36,0.14)", "badge_paid_text": "#fbbf24", "badge_paid_border": "rgba(251,191,36,0.25)",
+        "badge_level_bg": "rgba(167,139,250,0.14)", "badge_level_text": "#a78bfa", "badge_level_border": "rgba(167,139,250,0.25)",
+        "type_course": "rgba(52,211,153,0.14)", "type_course_text": "#4ade80",
+        "type_doc": "rgba(96,165,250,0.14)", "type_doc_text": "#60a5fa",
+        "type_video": "rgba(244,114,182,0.14)", "type_video_text": "#f472b6",
+        "type_article": "rgba(167,139,250,0.14)", "type_article_text": "#a78bfa",
+        "type_repo": "rgba(251,191,36,0.14)", "type_repo_text": "#fbbf24",
+        "button_bg": "linear-gradient(180deg, #1a1f2e, #151925)",
+        "button_bg_hover": "linear-gradient(180deg, #1e2536, #171c29)",
+        "button_border": "#2d3348",
+        "button_text": "#e2e8f0",
+        "button_text_hover": "#ffffff",
+        "input_bg": "#141824",
+        "input_border": "#2a3040",
+        "input_text": "#f1f5f9",
+        "sidebar_bg": "linear-gradient(180deg, #0d1119, #0a0d14)",
+        "sidebar_border": "#1c2130",
+        "tab_text": "#94a3b8",
+        "tab_text_selected": "#60a5fa",
+        "alert_border": "rgba(255,255,255,0.08)",
+        "divider": "#1c2130",
+        "accent": "#3b82f6",
+    },
+    "light": {
+        "app_bg": "linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%)",
+        "text_primary": "#0f172a",
+        "text_secondary": "#64748b",
+        "title_gradient": "linear-gradient(90deg, #0f172a, #2563eb)",
+        "card_bg": "linear-gradient(145deg, #ffffff, #f8fafc)",
+        "card_border": "#e2e8f0",
+        "card_border_hover": "#93c5fd",
+        "card_shadow": "rgba(15,23,42,0.06)",
+        "card_shadow_hover": "rgba(37,99,235,0.12)",
+        "summary_text": "#334155",
+        "meta_text": "#64748b",
+        "badge_score_bg": "rgba(22,163,74,0.10)", "badge_score_text": "#15803d", "badge_score_border": "rgba(21,128,61,0.25)",
+        "badge_relevance_bg": "rgba(37,99,235,0.10)", "badge_relevance_text": "#1d4ed8", "badge_relevance_border": "rgba(29,78,216,0.25)",
+        "badge_free_bg": "rgba(22,163,74,0.10)", "badge_free_text": "#15803d", "badge_free_border": "rgba(21,128,61,0.25)",
+        "badge_paid_bg": "rgba(217,119,6,0.10)", "badge_paid_text": "#b45309", "badge_paid_border": "rgba(180,83,9,0.25)",
+        "badge_level_bg": "rgba(124,58,237,0.10)", "badge_level_text": "#6d28d9", "badge_level_border": "rgba(109,40,217,0.25)",
+        "type_course": "rgba(22,163,74,0.10)", "type_course_text": "#15803d",
+        "type_doc": "rgba(37,99,235,0.10)", "type_doc_text": "#1d4ed8",
+        "type_video": "rgba(219,39,119,0.10)", "type_video_text": "#be185d",
+        "type_article": "rgba(124,58,237,0.10)", "type_article_text": "#6d28d9",
+        "type_repo": "rgba(217,119,6,0.10)", "type_repo_text": "#b45309",
+        "button_bg": "linear-gradient(180deg, #ffffff, #f8fafc)",
+        "button_bg_hover": "linear-gradient(180deg, #f8fafc, #f1f5f9)",
+        "button_border": "#e2e8f0",
+        "button_text": "#0f172a",
+        "button_text_hover": "#0f172a",
+        "input_bg": "#ffffff",
+        "input_border": "#e2e8f0",
+        "input_text": "#0f172a",
+        "sidebar_bg": "linear-gradient(180deg, #f8fafc, #f1f5f9)",
+        "sidebar_border": "#e2e8f0",
+        "tab_text": "#64748b",
+        "tab_text_selected": "#2563eb",
+        "alert_border": "rgba(15,23,42,0.08)",
+        "divider": "#e2e8f0",
+        "accent": "#2563eb",
+    },
+}
+
+
+def render_theme_toggle():
+    """Small sidebar control to flip between light and dark mode. Stored in
+    session_state, so it persists across page navigation within a session."""
+    with st.sidebar:
+        current = st.session_state.get("theme", "dark")
+        label = "☀️ Light mode" if current == "dark" else "🌙 Dark mode"
+        if st.button(label, key="theme_toggle_btn", use_container_width=True):
+            st.session_state["theme"] = "light" if current == "dark" else "dark"
+            st.rerun()
+
+
+def render_footer():
+    """Fixed-position footer shown on every page. Rendered automatically by
+    apply_custom_css() so no view file needs to call this directly."""
+    t = THEMES[st.session_state.get("theme", "dark")]
+    st.markdown(f"""
+    <style>
+        .app-footer {{
+            position: fixed;
+            left: 0;
+            bottom: 0;
+            width: 100%;
+            padding: 0.5rem 1.5rem;
+            background: {t["sidebar_bg"]};
+            border-top: 1px solid {t["divider"]};
+            font-size: 0.78rem;
+            color: {t["meta_text"]};
+            z-index: 999;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }}
+        .app-footer a {{
+            color: {t["meta_text"]};
+            text-decoration: none;
+            margin-left: 1rem;
+        }}
+        .app-footer a:hover {{
+            color: {t["accent"]};
+        }}
+        /* keep page content from being hidden behind the fixed footer */
+        .block-container {{
+            padding-bottom: 3.5rem !important;
+        }}
+    </style>
+    <div class="app-footer">
+        <span>📚 Skill Atlas &nbsp;·&nbsp; AI-Powered Learning Discovery &nbsp;·&nbsp; v1.0</span>
+        <span>
+            <a href="https://github.com/" target="_blank">GitHub</a>
+            <a href="mailto:contact@skillatlas.app">Contact</a>
+        </span>
+    </div>
+    """, unsafe_allow_html=True)
 
 
 def apply_custom_css():
-    st.markdown("""
+    if "theme" not in st.session_state:
+        st.session_state["theme"] = "dark"
+
+    render_theme_toggle()
+    t = THEMES[st.session_state["theme"]]
+
+    st.markdown(f"""
     <style>
         /* ---------- BASE ---------- */
-        .stApp {
-            background: linear-gradient(180deg, #0b0f1a 0%, #0e1117 100%);
-        }
-        html, body, [class*="css"] {
+        .stApp {{
+            background: {t["app_bg"]};
+        }}
+        html, body, [class*="css"] {{
             font-family: 'Segoe UI', 'Calibri', sans-serif;
-        }
+        }}
 
         /* ---------- TYPOGRAPHY ---------- */
-        .main-title {
+        .main-title {{
             font-size: 2.4rem;
             font-weight: 800;
-            background: linear-gradient(90deg, #ffffff, #93c5fd);
+            background: {t["title_gradient"]};
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             margin-bottom: 0.1rem;
             letter-spacing: -0.5px;
-        }
-        .subtitle {
-            color: #9ca3af;
+        }}
+        .subtitle {{
+            color: {t["text_secondary"]};
             font-size: 1.02rem;
             margin-bottom: 1.7rem;
-        }
+        }}
 
         /* ---------- CARDS ---------- */
-        .resource-card, .grid-card {
-            background: linear-gradient(145deg, #171b26, #14171f);
-            border: 1px solid #262b38;
+        .resource-card, .grid-card {{
+            background: {t["card_bg"]};
+            border: 1px solid {t["card_border"]};
             border-radius: 16px;
             padding: 1.4rem 1.6rem;
             margin-bottom: 1.1rem;
-            box-shadow: 0 4px 18px rgba(0,0,0,0.25);
+            box-shadow: 0 4px 18px {t["card_shadow"]};
             transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
-        }
-        .resource-card:hover, .grid-card:hover {
+        }}
+        .resource-card:hover, .grid-card:hover {{
             transform: translateY(-2px);
-            box-shadow: 0 8px 28px rgba(59,130,246,0.15);
-            border-color: #334063;
-        }
+            box-shadow: 0 8px 28px {t["card_shadow_hover"]};
+            border-color: {t["card_border_hover"]};
+        }}
 
-        /* Native bordered containers (st.container(border=True)) */
-        div[data-testid="stVerticalBlockBorderWrapper"] {
-            background: linear-gradient(145deg, #171b26, #14171f);
+        div[data-testid="stVerticalBlockBorderWrapper"] {{
+            background: {t["card_bg"]};
             border-radius: 16px !important;
-            border: 1px solid #262b38 !important;
-            box-shadow: 0 4px 18px rgba(0,0,0,0.25);
+            border: 1px solid {t["card_border"]} !important;
+            box-shadow: 0 4px 18px {t["card_shadow"]};
             transition: box-shadow 0.18s ease, border-color 0.18s ease;
-        }
-        div[data-testid="stVerticalBlockBorderWrapper"]:hover {
-            border-color: #334063 !important;
-            box-shadow: 0 8px 28px rgba(59,130,246,0.12);
-        }
+        }}
+        div[data-testid="stVerticalBlockBorderWrapper"]:hover {{
+            border-color: {t["card_border_hover"]} !important;
+            box-shadow: 0 8px 28px {t["card_shadow_hover"]};
+        }}
 
-        .resource-title, .grid-title {
+        .resource-title, .grid-title {{
             font-size: 1.28rem;
             font-weight: 700;
-            color: #f8fafc;
+            color: {t["text_primary"]};
             margin-bottom: 0.5rem;
             letter-spacing: -0.2px;
-        }
-        .summary-text, .grid-desc {
-            color: #b8c0cf;
+        }}
+        .summary-text, .grid-desc {{
+            color: {t["summary_text"]};
             line-height: 1.6;
             margin: 0.8rem 0;
-        }
-        .meta-text {
-            color: #7c8798;
+        }}
+        .meta-text {{
+            color: {t["meta_text"]};
             font-size: 0.85rem;
             margin-top: 0.45rem;
-        }
+        }}
+        .meta-text a {{ color: {t["accent"]}; }}
 
         /* ---------- BADGES ---------- */
-        .badge, .type-pill {
+        .badge, .type-pill {{
             display: inline-block;
             padding: 4px 12px;
             border-radius: 999px;
@@ -104,104 +252,101 @@ def apply_custom_css():
             margin-right: 6px;
             margin-bottom: 4px;
             letter-spacing: 0.2px;
-        }
-        .badge-score { background: rgba(52,211,153,0.14); color: #4ade80; border: 1px solid rgba(74,222,128,0.25); }
-        .badge-relevance { background: rgba(96,165,250,0.14); color: #60a5fa; border: 1px solid rgba(96,165,250,0.25); }
-        .badge-free { background: rgba(52,211,153,0.14); color: #4ade80; border: 1px solid rgba(74,222,128,0.25); }
-        .badge-paid { background: rgba(251,191,36,0.14); color: #fbbf24; border: 1px solid rgba(251,191,36,0.25); }
-        .badge-level { background: rgba(167,139,250,0.14); color: #a78bfa; border: 1px solid rgba(167,139,250,0.25); }
-        .type-Course { background: rgba(52,211,153,0.14); color: #4ade80; }
-        .type-Documentation { background: rgba(96,165,250,0.14); color: #60a5fa; }
-        .type-Video { background: rgba(244,114,182,0.14); color: #f472b6; }
-        .type-Article { background: rgba(167,139,250,0.14); color: #a78bfa; }
-        .type-Repository { background: rgba(251,191,36,0.14); color: #fbbf24; }
+        }}
+        .badge-score {{ background: {t["badge_score_bg"]}; color: {t["badge_score_text"]}; border: 1px solid {t["badge_score_border"]}; }}
+        .badge-relevance {{ background: {t["badge_relevance_bg"]}; color: {t["badge_relevance_text"]}; border: 1px solid {t["badge_relevance_border"]}; }}
+        .badge-free {{ background: {t["badge_free_bg"]}; color: {t["badge_free_text"]}; border: 1px solid {t["badge_free_border"]}; }}
+        .badge-paid {{ background: {t["badge_paid_bg"]}; color: {t["badge_paid_text"]}; border: 1px solid {t["badge_paid_border"]}; }}
+        .badge-level {{ background: {t["badge_level_bg"]}; color: {t["badge_level_text"]}; border: 1px solid {t["badge_level_border"]}; }}
+        .type-Course {{ background: {t["type_course"]}; color: {t["type_course_text"]}; }}
+        .type-Documentation {{ background: {t["type_doc"]}; color: {t["type_doc_text"]}; }}
+        .type-Video {{ background: {t["type_video"]}; color: {t["type_video_text"]}; }}
+        .type-Article {{ background: {t["type_article"]}; color: {t["type_article_text"]}; }}
+        .type-Repository {{ background: {t["type_repo"]}; color: {t["type_repo_text"]}; }}
 
         /* ---------- BUTTONS ---------- */
-        .stButton > button, .stLinkButton > a {
+        .stButton > button, .stLinkButton > a {{
             border-radius: 10px !important;
-            border: 1px solid #2d3348 !important;
-            background: linear-gradient(180deg, #1a1f2e, #151925) !important;
-            color: #e2e8f0 !important;
+            border: 1px solid {t["button_border"]} !important;
+            background: {t["button_bg"]} !important;
+            color: {t["button_text"]} !important;
             font-weight: 600 !important;
             transition: all 0.15s ease !important;
-        }
-        .stButton > button:hover, .stLinkButton > a:hover {
-            border-color: #3b82f6 !important;
-            background: linear-gradient(180deg, #1e2536, #171c29) !important;
-            color: #ffffff !important;
+        }}
+        .stButton > button:hover, .stLinkButton > a:hover {{
+            border-color: {t["accent"]} !important;
+            background: {t["button_bg_hover"]} !important;
+            color: {t["button_text_hover"]} !important;
             transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(59,130,246,0.2);
-        }
-        .stButton > button[kind="primary"] {
-            background: linear-gradient(135deg, #3b82f6, #2563eb) !important;
+            box-shadow: 0 4px 12px {t["card_shadow_hover"]};
+        }}
+        .stButton > button[kind="primary"] {{
+            background: linear-gradient(135deg, {t["accent"]}, {t["accent"]}) !important;
             border: none !important;
             color: #ffffff !important;
-        }
-        .stButton > button[kind="primary"]:hover {
-            box-shadow: 0 6px 18px rgba(59,130,246,0.35);
-        }
+        }}
+        .stButton > button[kind="primary"]:hover {{
+            box-shadow: 0 6px 18px {t["card_shadow_hover"]};
+        }}
 
         /* ---------- INPUTS ---------- */
-        .stTextInput input, .stTextArea textarea, .stSelectbox > div > div {
-            background-color: #141824 !important;
-            border: 1px solid #2a3040 !important;
+        .stTextInput input, .stTextArea textarea, .stSelectbox > div > div {{
+            background-color: {t["input_bg"]} !important;
+            border: 1px solid {t["input_border"]} !important;
             border-radius: 10px !important;
-            color: #f1f5f9 !important;
+            color: {t["input_text"]} !important;
             transition: border-color 0.15s ease;
-        }
-        .stTextInput input:focus, .stTextArea textarea:focus {
-            border-color: #3b82f6 !important;
-            box-shadow: 0 0 0 3px rgba(59,130,246,0.15) !important;
-        }
+        }}
+        .stTextInput input:focus, .stTextArea textarea:focus {{
+            border-color: {t["accent"]} !important;
+            box-shadow: 0 0 0 3px {t["card_shadow_hover"]} !important;
+        }}
 
         /* ---------- SIDEBAR ---------- */
-        section[data-testid="stSidebar"] {
-            background: linear-gradient(180deg, #0d1119, #0a0d14);
-            border-right: 1px solid #1c2130;
-        }
+        section[data-testid="stSidebar"] {{
+            background: {t["sidebar_bg"]};
+            border-right: 1px solid {t["sidebar_border"]};
+        }}
 
         /* ---------- TABS ---------- */
-        .stTabs [data-baseweb="tab"] {
-            color: #94a3b8;
+        .stTabs [data-baseweb="tab"] {{
+            color: {t["tab_text"]};
             font-weight: 600;
-        }
-        .stTabs [aria-selected="true"] {
-            color: #60a5fa !important;
-        }
+        }}
+        .stTabs [aria-selected="true"] {{
+            color: {t["tab_text_selected"]} !important;
+        }}
 
         /* ---------- ALERTS ---------- */
-        div[data-testid="stAlert"] {
+        div[data-testid="stAlert"] {{
             border-radius: 12px;
-            border: 1px solid rgba(255,255,255,0.08);
-        }
+            border: 1px solid {t["alert_border"]};
+        }}
 
         /* ---------- DIVIDERS ---------- */
-        hr {
-            border-color: #1c2130 !important;
+        hr {{
+            border-color: {t["divider"]} !important;
             margin: 1.6rem 0 !important;
-        }
+        }}
 
         /* ---------- SUBTLE FADE-IN ---------- */
-        div[data-testid="stVerticalBlockBorderWrapper"], .resource-card, .grid-card {
+        div[data-testid="stVerticalBlockBorderWrapper"], .resource-card, .grid-card {{
             animation: fadeIn 0.35s ease;
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(6px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+        }}
+        @keyframes fadeIn {{
+            from {{ opacity: 0; transform: translateY(6px); }}
+            to {{ opacity: 1; transform: translateY(0); }}
+        }}
     </style>
     """, unsafe_allow_html=True)
+
+    render_footer()
+
+
 TYPE_ICONS = {"Course": "🎓", "Documentation": "📄", "Video": "🎬", "Article": "📰", "Repository": "💻"}
 
 
 def _resolve_thumbnail(r) -> str:
-    """
-    Returns a displayable image path/URL for a resource card.
-    Prefers the resource's own real thumbnail (e.g. a crawled Open Graph
-    image or YouTube thumbnail). Falls back to a generated cover — cheap,
-    deterministic, cached on disk per resource (see pipeline/image_generator.py) —
-    so cards never fall back to a bare emoji icon.
-    """
     if r.thumbnail_url:
         return r.thumbnail_url
     return get_or_generate_resource_thumbnail(r.title, r.url)

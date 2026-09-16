@@ -28,16 +28,10 @@ import time
 _t0 = time.time()
 print(f"[T] script start")
 
-
-# Workaround for intermittent Windows import race (OSError WinError 6714)
-# that can hit pyarrow when it's first imported from Streamlit's background
-# ScriptRunner thread (happens inside streamlit_authenticator's cookie
-# manager component). Pre-importing here, with retries, forces it into
-# sys.modules early so the later lazy import just reuses the cached module.
 _t_pa = time.time()
 for _attempt in range(5):
     try:
-        import pyarrow  # noqa: F401
+        import pyarrow  
         break
     except OSError:
         time.sleep(0.2)
@@ -47,26 +41,11 @@ print(f"[T] imports done: {time.time()-_t0:.2f}s")
 
 st.set_page_config(page_title="Skill Atlas", page_icon="📚", layout="wide")
 
-# ---------------------------------------------------------------------------
-# THEME-AWARE COLORS
-# Streamlit does NOT expose global --background-color / --text-color CSS
-# variables on the main page (those only exist inside custom-component
-# iframes). And st.get_option("theme.base") only reflects config.toml, not
-# whatever the user picks live from the ⋮ menu -> Settings -> theme toggle.
-#
-# So instead we define our OWN CSS variables (--sa-*) with dark-theme
-# fallbacks for first paint, and a small JS snippet (below, in the
-# components.v1.html block) reads the colors Streamlit is ACTUALLY
-# rendering on already-themed native elements (sidebar, links, etc.) and
-# writes them into these variables live, on a polling interval. That keeps
-# our custom CSS in sync with whatever theme is really active, without
-# guessing variable names Streamlit doesn't actually expose here.
-# ---------------------------------------------------------------------------
 bg            = "var(--sa-bg, #0d1117)"
 card_bg       = "var(--sa-card-bg, #161b22)"
 input_bg      = "var(--sa-bg, #0d1117)"
 text          = "var(--sa-text, #f0f6fc)"
-muted         = "var(--sa-text, #8b949e)"     # dimmed via opacity below
+muted         = "var(--sa-text, #8b949e)"     
 border        = "color-mix(in srgb, var(--sa-text, #30363d) 25%, transparent)"
 accent        = "var(--sa-accent, #58a6ff)"
 button_bg     = "var(--sa-card-bg, #161b22)"
@@ -277,8 +256,7 @@ print(f"[T] stauth.Authenticate init: {time.time()-_t:.2f}s")
 st.session_state["authenticator"] = authenticator
 st.session_state["config"] = config
 
-# A user is "logged in" if EITHER the username/password authenticator
-# succeeded, OR Streamlit's native OAuth (st.user) says they're logged in.
+
 is_authenticated = (
     st.session_state.get("authentication_status") is True
     or st.user.is_logged_in
@@ -292,14 +270,6 @@ if not is_authenticated:
 
         st.divider()
 
-        # --- Google OAuth login ---
-        # Requires a [auth] section in .streamlit/secrets.toml with:
-        #   redirect_uri, cookie_secret, client_id, client_secret,
-        #   server_metadata_url = "https://accounts.google.com/.well-known/openid-configuration"
-        #
-        # If you instead configured a NAMED provider in secrets.toml
-        # (e.g. a [auth.google] section), change the call below to:
-        #   st.login("google")
         if st.button("Continue with Google", key="google_login_btn", use_container_width=True):
             st.login()
 
@@ -321,10 +291,6 @@ if is_authenticated:
     if st.user.is_logged_in:
         display_name = st.user.name
         display_email = st.user.email
-        # streamlit_authenticator sets session_state["username"] itself on
-        # form login, but Google OAuth never does — set it explicitly here
-        # so every page (e.g. discover.py's log_search call) can rely on
-        # st.session_state["username"] always being populated.
         st.session_state["username"] = display_email
         st.session_state["name"] = display_name
     else:
@@ -333,7 +299,7 @@ if is_authenticated:
 
     with st.sidebar:
         st.write(f"Welcome, **{display_name}**")
-        # Route logout correctly depending on how the user signed in.
+        
         if st.user.is_logged_in:
             if st.button("Logout", key="google_logout_btn"):
                 st.logout()
