@@ -348,7 +348,7 @@ if is_authenticated:
         st.Page("views/settings.py", title="Settings", icon="⚙️"),
         st.Page("views/playlists.py", title="Playlists", icon="🎵"),
         st.Page("views/roadmap.py", title="Roadmap", icon="🗺️"),
-        st.Page("views/create_course.py", title="Create Course", icon="🎬"),
+        st.Page("views/create_course.py", title="Micro Course", icon="🎬"),
     ])
 
     print(f"[T] total before pg.run: {time.time()-_t0:.2f}s")
