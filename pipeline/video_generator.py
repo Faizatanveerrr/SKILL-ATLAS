@@ -10,11 +10,16 @@ from concurrent.futures import ThreadPoolExecutor
 OUTPUT_DIR = os.path.abspath("generated_videos")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-NAVY = (11, 18, 32)
+# ---- Palette ----
+NAVY_TOP = (14, 22, 38)       # gradient top
+NAVY_BOTTOM = (8, 13, 24)     # gradient bottom
+CARD_ACTIVE = (26, 35, 54)    # active bullet card fill
+CARD_INACTIVE = (16, 21, 33)  # inactive bullet card fill
 ACCENT_BLUE = (59, 130, 246)
 ACCENT_MINT = (52, 211, 153)
 TEXT_BRIGHT = (241, 245, 249)
-TEXT_DIM = (100, 112, 130)
+TEXT_DIM = (120, 132, 150)
+TRACK_COLOR = (30, 38, 56)    # progress bar track
 
 # Cross-platform font fallback — "arialbd.ttf"/"arial.ttf" only exist on Windows,
 # so on Linux (servers, most deployments) this was silently falling back to
@@ -53,55 +58,98 @@ def split_into_points(text: str) -> list[str]:
     return [s.strip() for s in sentences if s.strip()]
 
 
-# How many points can stack in the 720px-tall frame below the title before
-# they'd start overflowing. Only the last MAX_VISIBLE_POINTS are ever drawn —
-# older ones scroll off instead of piling up forever. Without this, longer
-# lesson content (many sentences) pushed the "active" highlighted point below
-# the visible canvas, so the video appeared frozen on the last slide that
-# actually fit on screen even though internally it kept changing.
+# How many points can stack in the frame before they'd start overflowing.
+# Only the last MAX_VISIBLE_POINTS are ever drawn as cards — older ones
+# scroll off instead of piling up forever.
 MAX_VISIBLE_POINTS = 4
+
+
+def _vertical_gradient(width, height, top_color, bottom_color):
+    """Pure-Pillow gradient background — no extra dependencies."""
+    base = Image.new("RGB", (width, height), top_color)
+    draw = ImageDraw.Draw(base)
+    for y in range(height):
+        t = y / max(height - 1, 1)
+        r = int(top_color[0] + (bottom_color[0] - top_color[0]) * t)
+        g = int(top_color[1] + (bottom_color[1] - top_color[1]) * t)
+        b = int(top_color[2] + (bottom_color[2] - top_color[2]) * t)
+        draw.line([(0, y), (width, y)], fill=(r, g, b))
+    return base
 
 
 def create_progressive_slide(points: list[str], active_index: int, output_path: str,
                               lesson_title: str, width=1280, height=720) -> str:
-    img = Image.new("RGB", (width, height), color=NAVY)
+    img = _vertical_gradient(width, height, NAVY_TOP, NAVY_BOTTOM)
     draw = ImageDraw.Draw(img)
 
-    draw.rectangle([(0, 0), (width, 8)], fill=ACCENT_BLUE)
+    # Top accent bar
+    draw.rectangle([(0, 0), (width, 6)], fill=ACCENT_BLUE)
 
     title_font = _load_font(BOLD_FONT_CANDIDATES, 30)
-    point_font = _load_font(REGULAR_FONT_CANDIDATES, 34)
-    point_font_bold = _load_font(BOLD_FONT_CANDIDATES, 36)
+    point_font = _load_font(REGULAR_FONT_CANDIDATES, 30)
+    point_font_bold = _load_font(BOLD_FONT_CANDIDATES, 32)
+    number_font = _load_font(BOLD_FONT_CANDIDATES, 22)
+    progress_font = _load_font(REGULAR_FONT_CANDIDATES, 20)
 
-    draw.text((60, 40), lesson_title.upper(), font=title_font, fill=ACCENT_MINT)
+    # Title
+    draw.text((60, 44), lesson_title.upper(), font=title_font, fill=ACCENT_MINT)
+    draw.line([(60, 92), (width - 60, 92)], fill=(40, 50, 70), width=1)
 
-    # Only show a sliding window ending at the active point, so text never
-    # overflows the frame no matter how many sentences the lesson has.
+    # Sliding window: only render the last MAX_VISIBLE_POINTS as cards
     window_start = max(0, active_index - (MAX_VISIBLE_POINTS - 1))
     visible_points = points[window_start:active_index + 1]
-    active_index_in_window = active_index - window_start
+    active_in_window = active_index - window_start
 
-    y = 150
-    line_gap = 26
+    card_x, card_w = 60, width - 120
+    y = 130
+    card_gap = 18
+
     for i, point in enumerate(visible_points):
-        is_active = (i == active_index_in_window)
-        color = TEXT_BRIGHT if is_active else TEXT_DIM
-        font = point_font_bold if is_active else point_font
+        is_active = (i == active_in_window)
+        global_index = window_start + i
 
-        bullet_color = ACCENT_MINT if is_active else TEXT_DIM
-        draw.ellipse([(60, y + 12), (76, y + 28)], fill=bullet_color)
-
-        wrapped = textwrap.fill(point, width=55)
-        draw.multiline_text((100, y), wrapped, font=font, fill=color, spacing=10)
-
+        wrapped = textwrap.fill(point, width=52)
         line_count = wrapped.count("\n") + 1
-        y += (font.size + 10) * line_count + line_gap
+        font = point_font_bold if is_active else point_font
+        text_h = (font.size + 12) * line_count
+        card_h = text_h + 36
 
-    # Small progress indicator so it's visually obvious the lesson is moving
-    # forward even during a long slide window.
-    progress_font = _load_font(REGULAR_FONT_CANDIDATES, 22)
-    progress_text = f"{active_index + 1} / {len(points)}"
-    draw.text((width - 140, height - 50), progress_text, font=progress_font, fill=TEXT_DIM)
+        fill = CARD_ACTIVE if is_active else CARD_INACTIVE
+        draw.rounded_rectangle(
+            [(card_x, y), (card_x + card_w, y + card_h)],
+            radius=14, fill=fill,
+        )
+        if is_active:
+            # Accent left border to draw the eye to the current point
+            draw.rounded_rectangle(
+                [(card_x, y), (card_x + 6, y + card_h)],
+                radius=3, fill=ACCENT_MINT,
+            )
+
+        # Numbered badge instead of a plain dot
+        badge_cx, badge_cy, badge_r = card_x + 34, y + card_h // 2, 16
+        badge_color = ACCENT_MINT if is_active else TRACK_COLOR
+        draw.ellipse(
+            [(badge_cx - badge_r, badge_cy - badge_r), (badge_cx + badge_r, badge_cy + badge_r)],
+            fill=badge_color,
+        )
+        num_text = str(global_index + 1)
+        draw.text((badge_cx, badge_cy), num_text, font=number_font,
+                   fill=NAVY_TOP if is_active else TEXT_DIM, anchor="mm")
+
+        text_color = TEXT_BRIGHT if is_active else TEXT_DIM
+        draw.multiline_text((card_x + 68, y + 18), wrapped, font=font, fill=text_color, spacing=10)
+
+        y += card_h + card_gap
+
+    # Progress bar (replaces the old plain "N / M" text-only counter)
+    bar_x, bar_y, bar_w, bar_h = 60, height - 46, width - 120, 10
+    draw.rounded_rectangle([(bar_x, bar_y), (bar_x + bar_w, bar_y + bar_h)], radius=5, fill=TRACK_COLOR)
+    progress_ratio = (active_index + 1) / max(len(points), 1)
+    filled_w = max(int(bar_w * progress_ratio), bar_h)
+    draw.rounded_rectangle([(bar_x, bar_y), (bar_x + filled_w, bar_y + bar_h)], radius=5, fill=ACCENT_BLUE)
+    draw.text((bar_x + bar_w, bar_y - 8), f"{active_index + 1} / {len(points)}",
+               font=progress_font, fill=TEXT_DIM, anchor="ra")
 
     img.save(output_path)
     return output_path
