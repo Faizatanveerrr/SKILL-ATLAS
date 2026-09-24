@@ -486,7 +486,7 @@ def init_db():
 """)
     conn.commit()
     conn.close()
-def create_course(username: str, title: str, description: str, cover_image: str) -> int:
+def create_course(username: str, title: str, description: str, cover_image: str = None) -> int:
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
 
