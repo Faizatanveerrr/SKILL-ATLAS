@@ -229,11 +229,8 @@ def analyze_page(page: CrawledPage, topic: str,published_date:str|None=None) -> 
     combined_content = content_source[:8000]
     prompt = PROMPT_TEMPLATE.format(url=page.url, content=combined_content,topic=topic)
 
-from groq import Groq
-
-client = Groq()  # Reads GROQ_API_KEY from environment
-
-response = client.chat.completions.create(
+    client = Groq()  # Reads GROQ_API_KEY from environment
+    response = client.chat.completions.create(
     model="llama-3.3-70b-versatile",
     messages=[
         {
