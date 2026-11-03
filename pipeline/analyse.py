@@ -492,8 +492,9 @@ bedrock = boto3.client(
     aws_secret_access_key=_get_secret("AWS_SECRET_ACCESS_KEY"),
 )
 
-NOVA_MODEL_ID = "amazon.nova-lite-v1:0"
-GROQ_MODEL_ID = "llama-3.3-70b-versatile"
+NOVA_MODEL_ID = _get_secret("NOVA_MODEL") or "amazon.nova-lite-v1:0"
+GROQ_MODEL_ID = _get_secret("GROQ_MODEL") or "llama-3.3-70b-versatile"
+MIN_RELEVANCE = float(_get_secret("MIN_RELEVANCE") or 4.0)
 
 
 # ---------- prompts ----------
@@ -714,6 +715,12 @@ def analyze_page(page: CrawledPage, topic: str, published_date: str | None = Non
             response_format={"type": "json_object"},
         )
         data = parse_llm_json(response.choices[0].message.content)
+
+        relevance = float(data.get("relevance_score", 5.0))
+        if relevance < MIN_RELEVANCE:
+            print(f"Dropping {page.url}: relevance {relevance} < {MIN_RELEVANCE}")
+            return None
+
         return AnalyzedResource(
             url=page.url,
             title=data["title"],
@@ -728,11 +735,15 @@ def analyze_page(page: CrawledPage, topic: str, published_date: str | None = Non
             resource_type=data["resource_type"],
             price_type=data["price_type"],
             skills_taught=data.get("skills_taught", []),
-            relevance_score=data.get("relevance_score", 5.0),
+            relevance_score=relevance,
             estimated_minutes=data.get("estimated_minutes", 0),
         )
-    except groq.AuthenticationError:
-        raise  # bad key: fail loudly, don't silently skip every page
+    except (groq.AuthenticationError, groq.NotFoundError) as e:
+        # Config problems (bad key / bad model id): fail loudly instead of skipping every page.
+        raise RuntimeError(
+            f"Groq rejected the request (model='{GROQ_MODEL_ID}'): {e}. "
+            "Check GROQ_API_KEY and GROQ_MODEL in secrets."
+        ) from e
     except Exception as e:
         print(f"Skipping {page.url}: could not analyze ({e})")
         return None
