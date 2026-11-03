@@ -229,15 +229,19 @@ def analyze_page(page: CrawledPage, topic: str,published_date:str|None=None) -> 
     combined_content = content_source[:8000]
     prompt = PROMPT_TEMPLATE.format(url=page.url, content=combined_content,topic=topic)
 
-    response = bedrock.converse(
-        modelId="amazon.nova-lite-v1:0",
-        messages=[
-            {
-                "role": "user",
-                "content": [{"text": prompt}]
-            }
-        ],
-    )
+from groq import Groq
+
+client = Groq()  # Reads GROQ_API_KEY from environment
+
+response = client.chat.completions.create(
+    model="llama-3.3-70b-versatile",
+    messages=[
+        {
+            "role": "user",
+            "content": prompt
+        }
+    ],
+)
 
     raw_text = response["output"]["message"]["content"][0]["text"]
 
