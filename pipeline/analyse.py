@@ -112,12 +112,8 @@ from pipeline.youtube import is_youtube_url, get_youtube_transcript
 from pipeline.rank import rank_resources
 
 load_dotenv()
-
-bedrock = boto3.client(
-    "bedrock-runtime",
-    region_name=os.environ.get("AWS_REGION"),
-    aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
-    aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY"),
+client = Groq(
+    api_key=os.environ.get("GROQ_API_KEY")
 )
 PROMPT_TEMPLATE = """You are evaluating a learning resource for quality AND relevance.
 
@@ -230,7 +226,7 @@ def analyze_page(page: CrawledPage, topic: str,published_date:str|None=None) -> 
     combined_content = content_source[:8000]
     prompt = PROMPT_TEMPLATE.format(url=page.url, content=combined_content,topic=topic)
 
-    client = Groq()  # Reads GROQ_API_KEY from environment
+    
     response = client.chat.completions.create(
     model="llama-3.3-70b-versatile",
     messages=[
