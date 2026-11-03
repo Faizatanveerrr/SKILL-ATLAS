@@ -493,7 +493,7 @@ bedrock = boto3.client(
 )
 
 NOVA_MODEL_ID = _get_secret("NOVA_MODEL") or "amazon.nova-lite-v1:0"
-GROQ_MODEL_ID = _get_secret("GROQ_MODEL") or "llama-3.3-70b-versatile"
+GROQ_MODEL_ID = _get_secret("GROQ_MODEL") or "openai/gpt-oss-120b"
 MIN_RELEVANCE = float(_get_secret("MIN_RELEVANCE") or 4.0)
 
 
